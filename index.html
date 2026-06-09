@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+  <title>Calorie Tracker</title>
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <h1>Tracker</h1>
+      <div class="date-nav">
+        <button id="btn-prev">‹</button>
+        <span class="date-label" id="date-label">Today</span>
+        <button id="btn-next">›</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="summary-card calories">
+        <div class="value" id="total-cal">0</div>
+        <div class="label">Calories</div>
+        <div class="goal-bar"><div class="fill" id="cal-fill"></div></div>
+        <div class="goal-text" id="cal-goal">0 / 2,000</div>
+      </div>
+      <div class="summary-card protein">
+        <div class="value" id="total-pro">0g</div>
+        <div class="label">Protein</div>
+        <div class="goal-bar"><div class="fill" id="pro-fill"></div></div>
+        <div class="goal-text" id="pro-goal">0g / 150g</div>
+      </div>
+    </div>
+
+    <button class="goals-btn" id="goals-btn">Set daily goals</button>
+
+    <div class="entries-section" id="entries-list"></div>
+
+    <button class="add-btn" id="add-btn">+</button>
+  </div>
+
+  <!-- Add entry modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>Add Food</h2>
+      <div id="quick-adds" class="quick-adds" style="display:none"></div>
+      <div class="field">
+        <label>Food name</label>
+        <input type="text" id="input-name" placeholder="e.g. Chicken breast" autocomplete="off">
+      </div>
+      <div class="inline-goals">
+        <div class="field">
+          <label>Calories</label>
+          <input type="number" id="input-cal" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label>Protein (g)</label>
+          <input type="number" id="input-pro" placeholder="0" inputmode="numeric">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="btn-cancel">Cancel</button>
+        <button class="btn-save" id="btn-save">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Goals modal -->
+  <div class="modal-overlay" id="goals-overlay">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>Daily Goals</h2>
+      <div class="inline-goals">
+        <div class="field">
+          <label>Calorie goal</label>
+          <input type="number" id="goal-cal" placeholder="2000" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label>Protein goal (g)</label>
+          <input type="number" id="goal-pro" placeholder="150" inputmode="numeric">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="btn-cancel-goals">Cancel</button>
+        <button class="btn-save" id="btn-save-goals">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
