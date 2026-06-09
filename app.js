@@ -3,9 +3,11 @@ const $$ = s => document.querySelectorAll(s);
 
 const STORAGE_KEY = 'calorie_tracker_data';
 const GOALS_KEY = 'calorie_tracker_goals';
+const FAVORITES_KEY = 'calorie_tracker_favorites';
 
 let currentDate = todayStr();
 let swipedEntry = null;
+let editingEntryId = null; // null = adding, string = editing
 
 function todayStr() {
   const d = new Date();
@@ -30,6 +32,7 @@ function shiftDate(dateStr, days) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// --- Data helpers ---
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
   catch { return {}; }
@@ -63,6 +66,16 @@ function addEntry(dateStr, entry) {
   saveToRecents(entry);
 }
 
+function updateEntry(dateStr, id, updates) {
+  const data = loadData();
+  if (!data[dateStr]) return;
+  const idx = data[dateStr].findIndex(e => e.id === id);
+  if (idx === -1) return;
+  Object.assign(data[dateStr][idx], updates);
+  saveData(data);
+  saveToRecents(data[dateStr][idx]);
+}
+
 function deleteEntry(dateStr, id) {
   const data = loadData();
   if (data[dateStr]) {
@@ -72,6 +85,7 @@ function deleteEntry(dateStr, id) {
   }
 }
 
+// --- Recents ---
 function saveToRecents(entry) {
   const key = 'calorie_tracker_recents';
   let recents = [];
@@ -87,6 +101,34 @@ function getRecents() {
   catch { return []; }
 }
 
+// --- Favorites ---
+function loadFavorites() {
+  try { return JSON.parse(localStorage.getItem(FAVORITES_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveFavorites(favs) {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+}
+
+function addFavorite(entry) {
+  let favs = loadFavorites();
+  if (favs.some(f => f.name.toLowerCase() === entry.name.toLowerCase())) return;
+  favs.push({ name: entry.name, calories: entry.calories, protein: entry.protein });
+  saveFavorites(favs);
+}
+
+function removeFavorite(name) {
+  let favs = loadFavorites();
+  favs = favs.filter(f => f.name.toLowerCase() !== name.toLowerCase());
+  saveFavorites(favs);
+}
+
+function isFavorite(name) {
+  return loadFavorites().some(f => f.name.toLowerCase() === name.toLowerCase());
+}
+
+// --- Render ---
 function render() {
   const entries = getEntries(currentDate);
   const goals = loadGoals();
@@ -134,6 +176,9 @@ function render() {
             <div class="macro-label">pro</div>
           </div>
         </div>
+        <button class="entry-fav-btn ${isFavorite(e.name) ? 'is-fav' : ''}" data-name="${esc(e.name)}" data-cal="${e.calories}" data-pro="${e.protein}" aria-label="Favorite">
+          ${isFavorite(e.name) ? '★' : '☆'}
+        </button>
         <div class="entry-delete">Delete</div>
       </div>
     `).join('');
@@ -145,33 +190,89 @@ function esc(s) {
   return d.innerHTML;
 }
 
-function openModal() {
+// --- Add / Edit modal ---
+function openModal(entryId) {
+  editingEntryId = entryId || null;
   const overlay = $('#modal-overlay');
+
+  if (editingEntryId) {
+    // Editing: pre-fill from existing entry
+    const entries = getEntries(currentDate);
+    const entry = entries.find(e => e.id === editingEntryId);
+    if (!entry) return;
+    $('#modal-title').textContent = 'Edit Food';
+    $('#btn-save').textContent = 'Save';
+    $('#input-name').value = entry.name;
+    $('#input-cal').value = entry.calories;
+    $('#input-pro').value = entry.protein;
+    $('#quick-adds-section').style.display = 'none';
+  } else {
+    // Adding: clear fields
+    $('#modal-title').textContent = 'Add Food';
+    $('#btn-save').textContent = 'Add';
+    $('#input-name').value = '';
+    $('#input-cal').value = '';
+    $('#input-pro').value = '';
+    renderQuickAdds();
+  }
+
   overlay.classList.add('open');
-  renderQuickAdds();
   setTimeout(() => $('#input-name').focus(), 300);
 }
 
 function closeModal() {
   $('#modal-overlay').classList.remove('open');
+  editingEntryId = null;
   $('#input-name').value = '';
   $('#input-cal').value = '';
   $('#input-pro').value = '';
 }
 
 function renderQuickAdds() {
+  const favs = loadFavorites();
   const recents = getRecents();
-  const container = $('#quick-adds');
-  if (recents.length === 0) {
-    container.style.display = 'none';
+  const section = $('#quick-adds-section');
+  const favsContainer = $('#fav-adds');
+  const recentsContainer = $('#recent-adds');
+
+  const hasFavs = favs.length > 0;
+  const hasRecents = recents.length > 0;
+
+  if (!hasFavs && !hasRecents) {
+    section.style.display = 'none';
     return;
   }
-  container.style.display = 'flex';
-  container.innerHTML = recents.map(r =>
-    `<div class="quick-add" data-name="${esc(r.name)}" data-cal="${r.calories}" data-pro="${r.protein}">
-      ${esc(r.name)} <span style="color:var(--text2)">${r.calories}cal</span>
-    </div>`
-  ).join('');
+  section.style.display = 'block';
+
+  // Favorites
+  if (hasFavs) {
+    $('#fav-label').style.display = '';
+    favsContainer.style.display = 'flex';
+    favsContainer.innerHTML = favs.map(f =>
+      `<div class="quick-add fav-chip" data-name="${esc(f.name)}" data-cal="${f.calories}" data-pro="${f.protein}">
+        <span class="fav-star">★</span> ${esc(f.name)} <span style="color:var(--text2)">${f.calories}cal</span>
+      </div>`
+    ).join('');
+  } else {
+    $('#fav-label').style.display = 'none';
+    favsContainer.style.display = 'none';
+  }
+
+  // Recents (exclude items already in favorites)
+  const favNames = new Set(favs.map(f => f.name.toLowerCase()));
+  const filteredRecents = recents.filter(r => !favNames.has(r.name.toLowerCase()));
+  if (filteredRecents.length > 0) {
+    $('#recent-label').style.display = '';
+    recentsContainer.style.display = 'flex';
+    recentsContainer.innerHTML = filteredRecents.map(r =>
+      `<div class="quick-add" data-name="${esc(r.name)}" data-cal="${r.calories}" data-pro="${r.protein}">
+        ${esc(r.name)} <span style="color:var(--text2)">${r.calories}cal</span>
+      </div>`
+    ).join('');
+  } else {
+    $('#recent-label').style.display = 'none';
+    recentsContainer.style.display = 'none';
+  }
 }
 
 function handleSave() {
@@ -180,11 +281,17 @@ function handleSave() {
   const pro = parseInt($('#input-pro').value) || 0;
   if (!name) { $('#input-name').focus(); return; }
   if (cal === 0 && pro === 0) { $('#input-cal').focus(); return; }
-  addEntry(currentDate, { name, calories: cal, protein: pro });
+
+  if (editingEntryId) {
+    updateEntry(currentDate, editingEntryId, { name, calories: cal, protein: pro });
+  } else {
+    addEntry(currentDate, { name, calories: cal, protein: pro });
+  }
   closeModal();
   render();
 }
 
+// --- Goals ---
 function openGoals() {
   const goals = loadGoals();
   const overlay = $('#goals-overlay');
@@ -206,26 +313,33 @@ function handleSaveGoals() {
   render();
 }
 
-// Swipe to delete
+// --- Swipe to delete ---
 let touchStartX = 0;
+let touchStartY = 0;
 let touchCurrentX = 0;
 let activeEntry = null;
+let swiping = false;
 
 function handleTouchStart(e) {
   const entry = e.target.closest('.entry');
-  if (!entry) return;
+  if (!entry || e.target.closest('.entry-fav-btn')) return;
   if (swipedEntry && swipedEntry !== entry) {
     swipedEntry.classList.remove('swiped');
     swipedEntry = null;
   }
   touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
   activeEntry = entry;
+  swiping = false;
 }
 
 function handleTouchMove(e) {
   if (!activeEntry) return;
   touchCurrentX = e.touches[0].clientX;
   const dx = touchStartX - touchCurrentX;
+  const dy = Math.abs(e.touches[0].clientY - touchStartY);
+  if (!swiping && dy > 10 && Math.abs(dx) < dy) { activeEntry = null; return; }
+  if (Math.abs(dx) > 10) swiping = true;
   if (dx > 40) {
     activeEntry.classList.add('swiped');
     swipedEntry = activeEntry;
@@ -239,6 +353,34 @@ function handleTouchEnd() {
   activeEntry = null;
 }
 
+// --- Favorites modal ---
+function openFavoritesManager() {
+  const favs = loadFavorites();
+  const overlay = $('#favs-overlay');
+  const list = $('#favs-list');
+
+  if (favs.length === 0) {
+    list.innerHTML = `<div class="empty-state" style="padding:30px 0"><p>No favorites yet.<br>Tap the star on any food entry to save it.</p></div>`;
+  } else {
+    list.innerHTML = favs.map(f => `
+      <div class="fav-item" data-name="${esc(f.name)}">
+        <div class="fav-item-info">
+          <div class="fav-item-name">${esc(f.name)}</div>
+          <div class="fav-item-macros">${f.calories} cal &middot; ${f.protein}g protein</div>
+        </div>
+        <button class="fav-remove-btn" data-name="${esc(f.name)}">Remove</button>
+      </div>
+    `).join('');
+  }
+
+  overlay.classList.add('open');
+}
+
+function closeFavoritesManager() {
+  $('#favs-overlay').classList.remove('open');
+}
+
+// --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
   render();
 
@@ -249,13 +391,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Add entry
-  $('#add-btn').addEventListener('click', openModal);
+  $('#add-btn').addEventListener('click', () => openModal());
   $('#btn-save').addEventListener('click', handleSave);
   $('#btn-cancel').addEventListener('click', closeModal);
   $('#modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
 
-  // Quick adds
-  $('#quick-adds').addEventListener('click', e => {
+  // Quick adds (favorites + recents)
+  $('#quick-adds-section').addEventListener('click', e => {
     const qa = e.target.closest('.quick-add');
     if (!qa) return;
     $('#input-name').value = qa.dataset.name;
@@ -263,25 +405,62 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#input-pro').value = qa.dataset.pro;
   });
 
-  // Goals
+  // Goals — tappable cards + text link
   $('#goals-btn').addEventListener('click', openGoals);
+  $$('.summary-card').forEach(card => card.addEventListener('click', openGoals));
   $('#btn-save-goals').addEventListener('click', handleSaveGoals);
   $('#btn-cancel-goals').addEventListener('click', closeGoals);
   $('#goals-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeGoals(); });
 
-  // Swipe to delete
+  // Favorites manager
+  $('#favs-btn').addEventListener('click', openFavoritesManager);
+  $('#btn-close-favs').addEventListener('click', closeFavoritesManager);
+  $('#favs-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeFavoritesManager(); });
+  $('#favs-list').addEventListener('click', e => {
+    const removeBtn = e.target.closest('.fav-remove-btn');
+    if (!removeBtn) return;
+    removeFavorite(removeBtn.dataset.name);
+    openFavoritesManager(); // re-render
+    render();
+  });
+
+  // Swipe to delete + tap to edit + fav toggle
   const entriesList = $('#entries-list');
   entriesList.addEventListener('touchstart', handleTouchStart, { passive: true });
   entriesList.addEventListener('touchmove', handleTouchMove, { passive: true });
   entriesList.addEventListener('touchend', handleTouchEnd);
 
   entriesList.addEventListener('click', e => {
+    // Delete button
     const delBtn = e.target.closest('.entry-delete');
-    if (!delBtn) return;
-    const entry = delBtn.closest('.entry');
-    const id = entry.dataset.id;
-    entry.classList.add('removing');
-    setTimeout(() => { deleteEntry(currentDate, id); render(); }, 200);
+    if (delBtn) {
+      const entry = delBtn.closest('.entry');
+      const id = entry.dataset.id;
+      entry.classList.add('removing');
+      setTimeout(() => { deleteEntry(currentDate, id); render(); }, 200);
+      return;
+    }
+
+    // Favorite toggle
+    const favBtn = e.target.closest('.entry-fav-btn');
+    if (favBtn) {
+      const name = favBtn.dataset.name;
+      const cal = parseInt(favBtn.dataset.cal);
+      const pro = parseInt(favBtn.dataset.pro);
+      if (isFavorite(name)) {
+        removeFavorite(name);
+      } else {
+        addFavorite({ name, calories: cal, protein: pro });
+      }
+      render();
+      return;
+    }
+
+    // Tap entry to edit (only if not swiped)
+    const entry = e.target.closest('.entry');
+    if (entry && !entry.classList.contains('swiped') && !swiping) {
+      openModal(entry.dataset.id);
+    }
   });
 
   // Enter key submits

@@ -8,28 +8,31 @@
   <meta name="theme-color" content="#0a0a0a">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2">
   <title>Calorie Tracker</title>
 </head>
 <body>
   <div id="app">
     <div class="header">
       <h1>Tracker</h1>
-      <div class="date-nav">
-        <button id="btn-prev">‹</button>
-        <span class="date-label" id="date-label">Today</span>
-        <button id="btn-next">›</button>
+      <div class="header-actions">
+        <button class="icon-btn" id="favs-btn" aria-label="Favorites">★</button>
+        <div class="date-nav">
+          <button id="btn-prev">‹</button>
+          <span class="date-label" id="date-label">Today</span>
+          <button id="btn-next">›</button>
+        </div>
       </div>
     </div>
 
     <div class="summary">
-      <div class="summary-card calories">
+      <div class="summary-card calories" role="button" tabindex="0">
         <div class="value" id="total-cal">0</div>
         <div class="label">Calories</div>
         <div class="goal-bar"><div class="fill" id="cal-fill"></div></div>
         <div class="goal-text" id="cal-goal">0 / 2,000</div>
       </div>
-      <div class="summary-card protein">
+      <div class="summary-card protein" role="button" tabindex="0">
         <div class="value" id="total-pro">0g</div>
         <div class="label">Protein</div>
         <div class="goal-bar"><div class="fill" id="pro-fill"></div></div>
@@ -37,19 +40,24 @@
       </div>
     </div>
 
-    <button class="goals-btn" id="goals-btn">Set daily goals</button>
+    <button class="goals-btn" id="goals-btn">Tap cards to edit goals</button>
 
     <div class="entries-section" id="entries-list"></div>
 
     <button class="add-btn" id="add-btn">+</button>
   </div>
 
-  <!-- Add entry modal -->
+  <!-- Add / Edit entry modal -->
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
       <div class="modal-handle"></div>
-      <h2>Add Food</h2>
-      <div id="quick-adds" class="quick-adds" style="display:none"></div>
+      <h2 id="modal-title">Add Food</h2>
+      <div id="quick-adds-section">
+        <div class="qa-label" id="fav-label">Favorites</div>
+        <div id="fav-adds" class="quick-adds" style="display:none"></div>
+        <div class="qa-label" id="recent-label">Recent</div>
+        <div id="recent-adds" class="quick-adds" style="display:none"></div>
+      </div>
       <div class="field">
         <label>Food name</label>
         <input type="text" id="input-name" placeholder="e.g. Chicken breast" autocomplete="off">
@@ -93,6 +101,18 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Favorites manager modal -->
+  <div class="modal-overlay" id="favs-overlay">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>Favorites</h2>
+      <div id="favs-list" class="favs-list"></div>
+      <div class="modal-actions">
+        <button class="btn-save" id="btn-close-favs" style="flex:1">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=2"></script>
 </body>
 </html>

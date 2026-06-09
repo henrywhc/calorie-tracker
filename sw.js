@@ -1,4 +1,4 @@
-const CACHE_NAME = 'calorie-tracker-v1';
+const CACHE_NAME = 'calorie-tracker-v2';
 const BASE = self.registration.scope;
 const ASSETS = ['', 'index.html', 'styles.css', 'app.js', 'manifest.json'].map(f => BASE + f);
 
